@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DukanBook (دکان بک)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        :root {
+            --primary: #1a5276;
+            --primary-dark: #123a54;
+            --accent: #f39c12;
+            --bg: #f5f5f0;
+            --card-bg: #ffffff;
+            --text-main: #333333;
+            --text-muted: #666666;
+            --border: #e0e0e0;
+            --danger: #e74c3c;
+            --success: #2ecc71;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+        body { background-color: var(--bg); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        .hidden { display: none !important; }
+        .flex { display: flex; }
+        .flex-col { flex-direction: column; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .justify-center { justify-content: center; }
+        .p-4 { padding: 1rem; }
+        .m-4 { margin: 1rem; }
+        .mt-4 { margin-top: 1rem; }
+        .mb-4 { margin-bottom: 1rem; }
+        .w-full { width: 100%; }
+        .text-center { text-align: center; }
+        .text-xl { font-size: 1.25rem; font-weight: bold; }
+        .text-sm { font-size: 0.875rem; }
+        .text-muted { color: var(--text-muted); }
+        
+        button { border: none; background: none; cursor: pointer; outline: none; font-size: 1rem; }
+        .btn-primary { background-color: var(--primary); color: white; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: bold; width: 100%; transition: background 0.2s; }
+        .btn-primary:hover { background-color: var(--primary-dark); }
+        .btn-secondary { background-color: transparent; color: var(--primary); border: 1px solid var(--primary); padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: bold; width: 100%; }
+        .btn-danger { background-color: var(--danger); color: white; padding: 0.5rem 1rem; border-radius: 6px; }
+        input, select { width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; margin-bottom: 1rem; outline: none; }
+        input:focus { border-color: var(--primary); }
+        
+        #app-content { flex: 1; overflow-y: auto; padding-bottom: 80px; position: relative; }
+        .top-bar { background-color: var(--primary); color: white; padding: 1rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .top-bar h1 { font-size: 1.25rem; margin: 0; }
+        
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; display: flex; justify-content: space-around; padding: 0.5rem 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 40; border-top: 1px solid var(--border); }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: var(--text-muted); font-size: 0.75rem; padding: 0.5rem; flex: 1; }
+        .nav-item.active { color: var(--primary); font-weight: bold; }
+        .nav-item svg { width: 24px; height: 24px; margin-bottom: 4px; fill: currentColor; }
+        
+        .card { background: var(--card-bg); border-radius: 12px; padding: 1rem; margin-bottom: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid var(--border); }
+        .sheet-card { display: flex; align-items: center; cursor: pointer; transition: transform 0.1s; }
+        .sheet-card:active { transform: scale(0.98); }
+        .sheet-icon { font-size: 2.5rem; margin-right: 1rem; background: var(--bg); width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 12px; }
+        .sheet-info { flex: 1; }
+        .sheet-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 0.25rem; }
+        
+        .table-container { overflow-x: auto; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin: 1rem; }
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--border); min-width: 120px; }
+        th { background-color: #f8f9fa; font-weight: 600; color: var(--text-muted); position: sticky; top: 0; z-index: 5; }
+        tr:nth-child(even) { background-color: #fafafa; }
+        .action-cell { display: flex; gap: 0.5rem; }
+        .action-btn { padding: 0.5rem 0.75rem; border-radius: 6px; background: var(--bg); font-size: 0.875rem; font-weight: 500; border: 1px solid var(--border); transition: background 0.2s; }
+        .action-btn:hover { background: #e2e8f0; }
+        
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 50; display: flex; flex-direction: column; justify-content: flex-end; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal-content { background: white; border-radius: 20px 20px 0 0; padding: 1.5rem; width: 100%; max-height: 90vh; overflow-y: auto; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .modal-overlay.active .modal-content { transform: translateY(0); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        .close-btn { font-size: 1.5rem; color: var(--text-muted); }
+        
+        .fab { position: fixed; bottom: 80px; right: 20px; width: 56px; height: 56px; border-radius: 28px; background-color: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; box-shadow: 0 4px 12px rgba(243, 156, 18, 0.4); z-index: 30; }
+        
+        .chat-container { display: flex; flex-direction: column; height: 60vh; }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 1rem 0; display: flex; flex-direction: column; gap: 1rem; }
+        .message { max-width: 85%; padding: 0.75rem 1rem; border-radius: 12px; line-height: 1.4; }
+        .message.user { background-color: var(--primary); color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+        .message.ai { background-color: var(--bg); color: var(--text-main); align-self: flex-start; border-bottom-left-radius: 4px; }
+        .chat-input-area { padding-top: 1rem; border-top: 1px solid var(--border); }
+        .suggestion-chips { display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.75rem; scrollbar-width: none; }
+        .suggestion-chips::-webkit-scrollbar { display: none; }
+        .chip { background: var(--bg); border: 1px solid var(--border); padding: 0.5rem 1rem; border-radius: 16px; font-size: 0.875rem; white-space: nowrap; cursor: pointer; }
+        .chat-input-wrapper { display: flex; gap: 0.5rem; }
+        .chat-input-wrapper input { margin-bottom: 0; }
+        .send-btn { background: var(--primary); color: white; width: 48px; height: 48px; border-radius: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        
+        .offline-banner { background-color: var(--danger); color: white; text-align: center; padding: 0.5rem; font-size: 0.875rem; font-weight: bold; position: sticky; top: 0; z-index: 60; display: none; }
+        body.is-offline .offline-banner { display: block; }
+        body.is-offline .top-bar { top: 32px; }
+        
+        .column-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: var(--bg); border-radius: 6px; margin-bottom: 0.5rem; }
+        
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+        .stat-card { background: white; padding: 1rem; border-radius: 12px; border: 1px solid var(--border); text-align: center; }
+        .stat-value { font-size: 1.5rem; font-weight: bold; color: var(--primary); margin-top: 0.5rem; }
+    </style>
+</head>
+<body>
+
+    <div class="offline-banner">⚡ Offline — Manual Mode</div>
+
+    <!-- Main App Content -->
+    <div id="app-content">
+        <!-- Screens will be injected here -->
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav" id="bottom-nav">
+        <div class="nav-item active" onclick="navigate('home')">
+            <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+            Home
+        </div>
+        <div class="nav-item" onclick="navigate('sheets')">
+            <svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+            Sheets
+        </div>
+        <div class="nav-item" onclick="navigate('dashboard')">
+            <svg viewBox="0 0 24 24"><path d="M3 3v18h18V3H3zm6 14H7v-5h2v5zm4 0h-2v-3h2v3zm0-5h-2v-2h2v2zm4 5h-2V7h2v10z"/></svg>
+            Dashboard
+        </div>
+        <div class="nav-item" onclick="openAgent()">
+            <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+            Agent
+        </div>
+    </nav>
+
+    <!-- Modals -->
+    
+    <!-- Sheet Builder Modal -->
+    <div class="modal-overlay" id="sheet-builder-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="text-xl">Create New Sheet</h2>
+                <button class="close-btn" onclick="closeModal('sheet-builder-modal')">&times;</button>
+            </div>
+            <div>
+                <label class="text-sm font-bold block mb-1">Sheet Name</label>
+                <input type="text" id="new-sheet-name" placeholder="e.g. Udhar Khata">
+                
+                <label class="text-sm font-bold block mb-1">Icon (Emoji)</label>
+                <input type="text" id="new-sheet-icon" placeholder="e.g. 📒" maxlength="2" value="📄">
+                
+                <label class="text-sm font-bold block mb-1 mt-2">Columns</label>
+                <div id="column-list" class="mb-2"></div>
+                
+                <div class="flex gap-2 mb-4">
+                    <input type="text" id="new-column-name" placeholder="New column name" style="margin-bottom:0;">
+                    <button class="btn-secondary" style="width:auto; padding:0.5rem 1rem;" onclick="addColumn()">Add</button>
+                </div>
+                
+                <button class="btn-primary mt-4" onclick="createSheet()">Create Sheet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manage Columns Modal -->
+    <div class="modal-overlay" id="manage-columns-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="text-xl">Manage Columns</h2>
+                <button class="close-btn" onclick="closeModal('manage-columns-modal')">&times;</button>
+            </div>
+            <div id="manage-column-list" class="mb-4"></div>
+            <div class="flex gap-2 mb-4">
+                <input type="text" id="manage-new-column-name" placeholder="New column name" style="margin-bottom:0;">
+                <button class="btn-secondary" style="width:auto; padding:0.5rem 1rem;" onclick="addNewColumnToSheet()">Add</button>
+            </div>
+            <button class="btn-primary" onclick="closeModal('manage-columns-modal')">Done</button>
+        </div>
+    </div>
+
+    <!-- Add/Edit Row Modal -->
+    <div class="modal-overlay" id="row-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="text-xl" id="row-modal-title">Add Row</h2>
+                <button class="close-btn" onclick="closeModal('row-modal')">&times;</button>
+            </div>
+            <div id="row-inputs-container">
+                <!-- Inputs injected dynamically -->
+            </div>
+            <input type="hidden" id="editing-row-index" value="-1">
+            <button class="btn-primary mt-4" onclick="saveRow()">Save Row</button>
+        </div>
+    </div>
+
+    <!-- AI Agent Modal -->
+    <div class="modal-overlay" id="ai-agent-modal">
+        <div class="modal-content" style="height: 70vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="margin-bottom: 0;">
+                <h2 class="text-xl flex items-center gap-2">🤖 DukanBook AI</h2>
+                <button class="close-btn" onclick="closeModal('ai-agent-modal')">&times;</button>
+            </div>
+            <div class="chat-container">
+                <div class="chat-messages" id="chat-messages">
+                    <div class="message ai">Assalam o Alaikum! How can I help you with your register today?</div>
+                </div>
+                <div class="chat-input-area">
+                    <div class="suggestion-chips">
+                        <div class="chip" onclick="sendSuggested('Kitna udhar baaki hai?')">Kitna udhar baaki hai?</div>
+                        <div class="chip" onclick="sendSuggested('Add new entry')">Add new entry</div>
+                        <div class="chip" onclick="sendSuggested('Show low stock items')">Show low stock items</div>
+                    </div>
+                    <div class="chat-input-wrapper">
+                        <input type="text" id="chat-input" placeholder="Type a message..." onkeypress="if(event.key === 'Enter') sendChatMessage()">
+                        <button class="send-btn" onclick="sendChatMessage()">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="white"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- State & Data ---
+        const apiKey = process.env.GEMINI_API_KEY;
+        let sheets = JSON.parse(localStorage.getItem('dukanbook_sheets')) || null;
+        let currentScreen = 'home';
+        let currentSheetId = null;
+        let pendingColumns = ['Date', 'Description', 'Amount'];
+        let chatHistory = [];
+
+        // Initialize default data if empty
+        if (!sheets) {
+            sheets = [
+                {
+                    id: 'sheet_' + Date.now(),
+                    name: 'Udhar Khata',
+                    icon: '📒',
+                    columns: ['Date', 'Name', 'Item', 'Amount', 'Status'],
+                    rows: [
+                        { Date: '2023-10-01', Name: 'Ali', Item: 'Chawal 5kg', Amount: '1500', Status: 'Unpaid' },
+                        { Date: '2023-10-02', Name: 'Usman', Item: 'Ghee 1kg', Amount: '600', Status: 'Paid' },
+                        { Date: '2023-10-03', Name: 'Ahmed', Item: 'Atta 10kg', Amount: '1400', Status: 'Unpaid' },
+                        { Date: '2023-10-04', Name: 'Sara', Item: 'Sugar 2kg', Amount: '300', Status: 'Unpaid' },
+                        { Date: '2023-10-05', Name: 'Bilal', Item: 'Tea', Amount: '450', Status: 'Paid' }
+                    ],
+                    updatedAt: Date.now()
+                },
+                {
+                    id: 'sheet_' + (Date.now() + 1),
+                    name: 'Inventory',
+                    icon: '📦',
+                    columns: ['Item Name', 'Category', 'Stock', 'Price'],
+                    rows: [
+                        { 'Item Name': 'Chawal', Category: 'Grocery', Stock: '50', Price: '300' },
+                        { 'Item Name': 'Ghee', Category: 'Grocery', Stock: '20', Price: '600' },
+                        { 'Item Name': 'Atta', Category: 'Grocery', Stock: '15', Price: '1400' },
+                        { 'Item Name': 'Sugar', Category: 'Grocery', Stock: '30', Price: '150' },
+                        { 'Item Name': 'Tea', Category: 'Grocery', Stock: '40', Price: '450' }
+                    ],
+                    updatedAt: Date.now()
+                }
+            ];
+            saveData();
+        }
+
+        function saveData() {
+            localStorage.setItem('dukanbook_sheets', JSON.stringify(sheets));
+        }
+
+        // --- Initialization ---
+        function init() {
+            checkOfflineStatus();
+            window.addEventListener('online', checkOfflineStatus);
+            window.addEventListener('offline', checkOfflineStatus);
+            navigate('home');
+        }
+
+        function checkOfflineStatus() {
+            if (!navigator.onLine) {
+                document.body.classList.add('is-offline');
+                const chatInput = document.getElementById('chat-input');
+                if(chatInput) {
+                    chatInput.disabled = true;
+                    chatInput.placeholder = "⚡ Offline. Reconnect to use AI.";
+                }
+            } else {
+                document.body.classList.remove('is-offline');
+                const chatInput = document.getElementById('chat-input');
+                if(chatInput) {
+                    chatInput.disabled = false;
+                    chatInput.placeholder = "Type a message...";
+                }
+            }
+        }
+
+        // --- Navigation & Rendering ---
+        function navigate(screen) {
+            currentScreen = screen;
+            updateNavUI();
+            const content = document.getElementById('app-content');
+            content.innerHTML = '';
+
+            if (screen === 'home' || screen === 'sheets') {
+                renderHome(content);
+            } else if (screen === 'dashboard') {
+                renderDashboard(content);
+            }
+        }
+
+        function updateNavUI() {
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            const items = document.querySelectorAll('.nav-item');
+            if(currentScreen === 'home') items[0].classList.add('active');
+            if(currentScreen === 'sheets') items[1].classList.add('active');
+            if(currentScreen === 'dashboard') items[2].classList.add('active');
+        }
+
+        function renderHome(container) {
+            let html = `
+                <div class="top-bar">
+                    <h1>DukanBook</h1>
+                </div>
+                <div class="p-4">
+            `;
+            
+            if (sheets.length === 0) {
+                html += `<div class="text-center text-muted mt-8">No sheets yet. Create one below!</div>`;
+            } else {
+                sheets.forEach(sheet => {
+                    const date = new Date(sheet.updatedAt).toLocaleDateString();
+                    html += `
+                        <div class="card sheet-card" onclick="openSheet('${sheet.id}')">
+                            <div class="sheet-icon">${sheet.icon}</div>
+                            <div class="sheet-info">
+                                <div class="sheet-title">${sheet.name}</div>
+                                <div class="text-sm text-muted">${sheet.rows.length} rows • Updated ${date}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            html += `
+                </div>
+                <button class="fab" onclick="openSheetBuilder()">+</button>
+            `;
+            container.innerHTML = html;
+        }
+
+        function openSheet(id) {
+            currentSheetId = id;
+            const sheet = sheets.find(s => s.id === id);
+            if (!sheet) return;
+
+            const content = document.getElementById('app-content');
+            
+            let html = `
+                <div class="top-bar">
+                    <div class="flex items-center gap-2">
+                        <button onclick="navigate('home')" style="color:white; padding:0 8px;">←</button>
+                        <h1>${sheet.icon} ${sheet.name}</h1>
+                    </div>
+                    <div class="text-sm opacity-80">${sheet.rows.length} rows</div>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                ${sheet.columns.map(col => `<th>${col}</th>`).join('')}
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            if (sheet.rows.length === 0) {
+                html += `<tr><td colspan="${sheet.columns.length + 1}" class="text-center text-muted">No data yet. Add a row!</td></tr>`;
+            } else {
+                sheet.rows.forEach((row, index) => {
+                    html += `<tr>`;
+                    sheet.columns.forEach(col => {
+                        html += `<td>${row[col] || ''}</td>`;
+                    });
+                    html += `
+                        <td class="action-cell">
+                            <button class="action-btn" onclick="editRow(${index})">✏️ Edit</button>
+                            <button class="action-btn" onclick="deleteRow(${index})">🗑️ Delete</button>
+                        </td>
+                    </tr>`;
+                });
+            }
+
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+                <div style="padding: 1rem; display: flex; gap: 1rem; flex-direction: column;">
+                    <button class="btn-primary" onclick="openAddRowModal()">+ Add Row</button>
+                    <button class="btn-secondary" onclick="openManageColumnsModal()">⚙️ Manage Columns</button>
+                </div>
+            `;
+            
+            content.innerHTML = html;
+            
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+        }
+
+        function renderDashboard(container) {
+            const totalRows = sheets.reduce((sum, sheet) => sum + sheet.rows.length, 0);
+            const totalSheets = sheets.length;
+            let lastUpdated = 'Never';
+            if (sheets.length > 0) {
+                const latest = Math.max(...sheets.map(s => s.updatedAt));
+                lastUpdated = new Date(latest).toLocaleDateString();
+            }
+
+            let html = `
+                <div class="top-bar">
+                    <h1>Dashboard</h1>
+                </div>
+                <div class="p-4">
+                    <div class="stat-grid">
+                        <div class="stat-card">
+                            <div class="text-sm text-muted">Total Rows</div>
+                            <div class="stat-value">${totalRows}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="text-sm text-muted">Total Sheets</div>
+                            <div class="stat-value">${totalSheets}</div>
+                        </div>
+                        <div class="stat-card" style="grid-column: span 2;">
+                            <div class="text-sm text-muted">Last Updated</div>
+                            <div class="stat-value" style="font-size: 1.2rem;">${lastUpdated}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <h3 class="mb-4">Rows Per Sheet</h3>
+                        <canvas id="dashboardChart" width="400" height="250"></canvas>
+                    </div>
+                </div>
+            `;
+            container.innerHTML = html;
+
+            if (sheets.length > 0) {
+                setTimeout(() => {
+                    const ctx = document.getElementById('dashboardChart').getContext('2d');
+                    new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: sheets.map(s => s.name),
+                            datasets: [{
+                                label: 'Rows',
+                                data: sheets.map(s => s.rows.length),
+                                backgroundColor: '#1a5276',
+                                borderRadius: 4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+                            plugins: { legend: { display: false } }
+                        }
+                    });
+                }, 100);
+            }
+        }
+
+        // --- Modals & Actions ---
+        function openModal(id) {
+            document.getElementById(id).classList.add('active');
+        }
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        // Sheet Builder
+        function openSheetBuilder() {
+            document.getElementById('new-sheet-name').value = '';
+            document.getElementById('new-sheet-icon').value = '📄';
+            pendingColumns = ['Date', 'Description', 'Amount'];
+            renderPendingColumns();
+            openModal('sheet-builder-modal');
+        }
+
+        function renderPendingColumns() {
+            const list = document.getElementById('column-list');
+            list.innerHTML = pendingColumns.map((col, i) => `
+                <div class="column-item">
+                    <span>${col}</span>
+                    <button onclick="removeColumn(${i})" style="color:var(--danger)">✕</button>
+                </div>
+            `).join('');
+        }
+
+        function addColumn() {
+            const input = document.getElementById('new-column-name');
+            const val = input.value.trim();
+            if (val && !pendingColumns.includes(val)) {
+                pendingColumns.push(val);
+                input.value = '';
+                renderPendingColumns();
+            }
+        }
+
+        function removeColumn(index) {
+            pendingColumns.splice(index, 1);
+            renderPendingColumns();
+        }
+
+        function createSheet() {
+            const name = document.getElementById('new-sheet-name').value.trim();
+            const icon = document.getElementById('new-sheet-icon').value.trim() || '📄';
+            if (!name || pendingColumns.length === 0) {
+                alert("Please provide a name and at least one column.");
+                return;
+            }
+            
+            const newSheet = {
+                id: 'sheet_' + Date.now(),
+                name,
+                icon,
+                columns: [...pendingColumns],
+                rows: [],
+                updatedAt: Date.now()
+            };
+            
+            sheets.push(newSheet);
+            saveData();
+            closeModal('sheet-builder-modal');
+            navigate('home');
+        }
+
+        // Manage Columns (Existing Sheets)
+        function openManageColumnsModal() {
+            renderManageColumns();
+            openModal('manage-columns-modal');
+        }
+
+        function renderManageColumns() {
+            const sheet = sheets.find(s => s.id === currentSheetId);
+            if (!sheet) return;
+            const list = document.getElementById('manage-column-list');
+            list.innerHTML = sheet.columns.map((col, i) => `
+                <div class="column-item">
+                    <span style="font-weight: 500;">${col}</span>
+                    <div>
+                        <button onclick="renameColumn('${col}')" style="margin-right: 8px; font-size: 1.2rem;">✏️</button>
+                        <button onclick="deleteColumnFromSheet('${col}')" style="color:var(--danger); font-size: 1.2rem;">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function addNewColumnToSheet() {
+            const sheet = sheets.find(s => s.id === currentSheetId);
+            const input = document.getElementById('manage-new-column-name');
+            const val = input.value.trim();
+            if (val && !sheet.columns.includes(val)) {
+                sheet.columns.push(val);
+                sheet.updatedAt = Date.now();
+                saveData();
+                input.value = '';
+                renderManageColumns();
+                openSheet(currentSheetId);
+            } else if (sheet.columns.includes(val)) {
+                alert("Column already exists!");
+            }
+        }
+
+        function renameColumn(oldName) {
+            const newName = prompt("Enter new name for column:", oldName);
+            if (newName && newName.trim() !== "" && newName.trim() !== oldName) {
+                const sheet = sheets.find(s => s.id === currentSheetId);
+                const trimmedNewName = newName.trim();
+                if (sheet.columns.includes(trimmedNewName)) {
+                    alert("Column name already exists!");
+                    return;
+                }
+                const colIndex = sheet.columns.indexOf(oldName);
+                if (colIndex > -1) sheet.columns[colIndex] = trimmedNewName;
+                
+                sheet.rows.forEach(row => {
+                    if (row[oldName] !== undefined) {
+                        row[trimmedNewName] = row[oldName];
+                        delete row[oldName];
+                    }
+                });
+                sheet.updatedAt = Date.now();
+                saveData();
+                renderManageColumns();
+                openSheet(currentSheetId);
+            }
+        }
+
+        function deleteColumnFromSheet(colName) {
+            if (confirm(`Are you sure you want to delete the column "${colName}"? This will remove data for this column in all rows.`)) {
+                const sheet = sheets.find(s => s.id === currentSheetId);
+                sheet.columns = sheet.columns.filter(c => c !== colName);
+                sheet.rows.forEach(row => {
+                    delete row[colName];
+                });
+                sheet.updatedAt = Date.now();
+                saveData();
+                renderManageColumns();
+                openSheet(currentSheetId);
+            }
+        }
+
+        // Row Operations
+        function openAddRowModal() {
+            const sheet = sheets.find(s => s.id === currentSheetId);
+            if (!sheet) return;
+            
+            document.getElementById('row-modal-title').innerText = 'Add Row';
+            document.getElementById('editing-row-index').value = '-1';
+            
+            const container = document.getElementById('row-inputs-container');
+            container.innerHTML = sheet.columns.map(col => `
+                <label class="text-sm font-bold block mb-1">${col}</label>
+                <input type="text" id="input-${col.replace(/\s+/g, '-')}" data-col="${col}">
+            `).join('');
+            
+            openModal('row-modal');
+        }
+
+        function editRow(index) {
+            const sheet = sheets.find(s => s.id === currentSheetId);
+            if (!sheet) return;
+            
+            const row = sheet.rows[index];
+            document.getElementById('row-modal-title').innerText = 'Edit Row';
+            document.getElementById('editing-row-index').value = index;
+            
+            const container = document.getElementById('row-inputs-container');
+            container.innerHTML = sheet.columns.map(col => `
+                <label class="text-sm font-bold block mb-1">${col}</label>
+                <input type="text" id="input-${col.replace(/\s+/g, '-')}" data-col="${col}" value="${row[col] || ''}">
+            `).join('');
+            
+            openModal('row-modal');
+        }
+
+        function saveRow() {
+            const sheet = sheets.find(s => s.id === currentSheetId);
+            if (!sheet) return;
+            
+            const index = parseInt(document.getElementById('editing-row-index').value);
+            const newRowData = {};
+            
+            sheet.columns.forEach(col => {
+                const input = document.getElementById(`input-${col.replace(/\s+/g, '-')}`);
+                newRowData[col] = input ? input.value.trim() : '';
+            });
+            
+            if (index === -1) {
+                sheet.rows.push(newRowData);
+            } else {
+                sheet.rows[index] = newRowData;
+            }
+            
+            sheet.updatedAt = Date.now();
+            saveData();
+            closeModal('row-modal');
+            openSheet(currentSheetId);
+        }
+
+        function deleteRow(index) {
+            if (confirm("Are you sure you want to delete this row?")) {
+                const sheet = sheets.find(s => s.id === currentSheetId);
+                if (sheet) {
+                    sheet.rows.splice(index, 1);
+                    sheet.updatedAt = Date.now();
+                    saveData();
+                    openSheet(currentSheetId);
+                }
+            }
+        }
+
+        // --- AI Agent ---
+        function openAgent() {
+            openModal('ai-agent-modal');
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            document.querySelectorAll('.nav-item')[3].classList.add('active');
+        }
+
+        function sendSuggested(text) {
+            document.getElementById('chat-input').value = text;
+            sendChatMessage();
+        }
+
+        async function sendChatMessage() {
+            if (!navigator.onLine) {
+                alert("AI Agent requires an internet connection.");
+                return;
+            }
+            if (!apiKey || apiKey === 'undefined') {
+                alert("API Key is missing. Please configure it in the environment.");
+                return;
+            }
+
+            const inputEl = document.getElementById('chat-input');
+            const text = inputEl.value.trim();
+            if (!text) return;
+
+            inputEl.value = '';
+            appendMessage(text, 'user');
+            
+            chatHistory.push({ role: "user", parts: [{ text }] });
+
+            const systemPrompt = `
+You are DukanBook AI, a helpful assistant for a Pakistani shopkeeper.
+You help manage their register (khata) sheets.
+
+Current sheets and data:
+${JSON.stringify(sheets)}
+
+When the shopkeeper asks you to add/edit/delete data, respond with:
+1. A friendly confirmation message in simple English or Roman Urdu
+2. A JSON action block EXACTLY like this if a data change is needed:
+
+ACTION:
+{
+  "action": "add_row",
+  "sheet": "Udhar Khata",
+  "data": { "Name": "Ali", "Item": "Chawal", "Amount": "500", "Status": "Unpaid" }
+}
+
+Possible actions: 
+- add_row (requires "sheet" name and "data" object)
+- delete_row (requires "sheet" name and "row_index" integer)
+- update_row (requires "sheet" name, "row_index" integer, and "data" object with updated fields)
+- summarize (no data change).
+
+IMPORTANT: The JSON block must start with "ACTION:" followed immediately by the JSON object. Do not wrap the JSON in markdown code blocks.
+`;
+
+            try {
+                const loadingId = appendMessage("...", "ai");
+                
+                const res = await fetch(
+                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            system_instruction: { parts: [{ text: systemPrompt }] },
+                            contents: chatHistory
+                        })
+                    }
+                );
+                
+                const data = await res.json();
+                document.getElementById(loadingId).remove();
+
+                if (data.error) {
+                    appendMessage("Error: " + data.error.message, "ai");
+                    chatHistory.pop();
+                    return;
+                }
+
+                const reply = data.candidates[0].content.parts[0].text;
+                chatHistory.push({ role: "model", parts: [{ text: reply }] });
+                
+                const actionIndex = reply.indexOf('ACTION:');
+                let displayReply = reply;
+                
+                if (actionIndex !== -1) {
+                    displayReply = reply.substring(0, actionIndex).trim();
+                    const jsonStart = reply.indexOf('{', actionIndex);
+                    const jsonEnd = reply.lastIndexOf('}');
+                    
+                    if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+                        const jsonStr = reply.substring(jsonStart, jsonEnd + 1);
+                        try {
+                            const actionObj = JSON.parse(jsonStr);
+                            executeAction(actionObj);
+                        } catch(e) {
+                            console.error("Failed to parse action", e, jsonStr);
+                        }
+                    }
+                }
+                
+                if (displayReply) {
+                    appendMessage(displayReply, 'ai');
+                }
+
+            } catch (error) {
+                console.error(error);
+                appendMessage("Sorry, I couldn't connect to the server.", "ai");
+                chatHistory.pop();
+            }
+        }
+
+        function appendMessage(text, sender) {
+            const container = document.getElementById('chat-messages');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${sender}`;
+            msgDiv.innerText = text;
+            const id = 'msg_' + Date.now();
+            msgDiv.id = id;
+            container.appendChild(msgDiv);
+            container.scrollTop = container.scrollHeight;
+            return id;
+        }
+
+        function executeAction(actionObj) {
+            const { action, sheet: sheetName, data, row_index } = actionObj;
+            
+            if (!sheetName) {
+                console.warn("Action missing sheet name:", actionObj);
+                return;
+            }
+
+            const targetSheet = sheets.find(s => s.name.toLowerCase() === sheetName.toLowerCase());
+            
+            if (!targetSheet) {
+                console.warn("Sheet not found for action:", sheetName);
+                return;
+            }
+
+            let actionTaken = false;
+
+            if (action === 'add_row' && data) {
+                targetSheet.rows.push(data);
+                targetSheet.updatedAt = Date.now();
+                actionTaken = true;
+            } else if (action === 'delete_row' && row_index !== undefined) {
+                if(targetSheet.rows[row_index]) {
+                    targetSheet.rows.splice(row_index, 1);
+                    targetSheet.updatedAt = Date.now();
+                    actionTaken = true;
+                }
+            } else if (action === 'update_row' && row_index !== undefined && data) {
+                if(targetSheet.rows[row_index]) {
+                    targetSheet.rows[row_index] = { ...targetSheet.rows[row_index], ...data };
+                    targetSheet.updatedAt = Date.now();
+                    actionTaken = true;
+                }
+            }
+            
+            if (actionTaken) {
+                saveData();
+                
+                if (currentSheetId === targetSheet.id) {
+                    openSheet(currentSheetId);
+                } else if (currentScreen === 'home' || currentScreen === 'sheets') {
+                    renderHome(document.getElementById('app-content'));
+                } else if (currentScreen === 'dashboard') {
+                    renderDashboard(document.getElementById('app-content'));
+                }
+            }
+        }
+
+        // --- PWA Setup ---
+        const manifest = {
+            "name": "DukanBook",
+            "short_name": "DukanBook",
+            "start_url": ".",
+            "display": "standalone",
+            "background_color": "#f5f5f0",
+            "theme_color": "#1a5276",
+            "icons": [{
+                "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48dGV4dCB5PSIuOWVtIiBmb250LXNpemU9IjkwIj7wn5KTPC90ZXh0Pjwvc3ZnPg==",
+                "sizes": "192x192",
+                "type": "image/svg+xml"
+            }]
+        };
+        const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+        const manifestUrl = URL.createObjectURL(manifestBlob);
+        document.head.insertAdjacentHTML('beforeend', `<link rel="manifest" href="${manifestUrl}">`);
+
+        const swCode = `
+        self.addEventListener('install', (e) => {
+            e.waitUntil(caches.open('dukanbook-v1').then((cache) => cache.addAll(['./'])));
+        });
+        self.addEventListener('fetch', (e) => {
+            e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request)));
+        });
+        `;
+        const swBlob = new Blob([swCode], {type: 'application/javascript'});
+        const swUrl = URL.createObjectURL(swBlob);
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register(swUrl).catch(err => console.log('SW registration failed', err));
+        }
+
+        // Start App
+        init();
+    </script>
+</body>
+</html>
